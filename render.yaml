@@ -6,6 +6,6 @@ services:
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_PUBLISHABLE_KEY
-        sync: false
+        value: pk_live_51SlU4pGWjfNkyxZSXILsEoZVVhftG6FHonJhJmlIOJr4A030stAjdB0LfqhChrgP3cGYcZ5OEKITApqkmt4dKTiQ00S4V6Rflx
       - key: CURRENCY
         value: usd
