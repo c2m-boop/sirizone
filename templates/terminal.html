@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Stripe Terminal POS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://js.stripe.com/terminal/v1/"></script>
+  <link rel="stylesheet" href="/global.css" />
+  <style>
+    .status-box {
+      padding: 15px;
+      border: 1px solid #e6e6e6;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      background: #f9f9f9;
+    }
+    .reader-list {
+      margin-top: 10px;
+    }
+    .reader-item {
+      padding: 10px;
+      border: 1px solid #ddd;
+      margin-bottom: 5px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+    .reader-item:hover {
+      background: #f0f0f0;
+    }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="connection-status">
+    <span id="connection-text">POS System Ready</span>
+    <div id="connection-led" class="led connected"></div>
+  </div>
+
+  <form id="payment-form" onsubmit="return false;">
+    <h2>Terminal POS</h2>
+    
+    <!-- Step 1: Connect to Reader -->
+    <div id="step-connect">
+      <div class="status-box">
+        <p><strong>Status:</strong> <span id="terminal-status">Disconnected</span></p>
+      </div>
+      <button id="discover-btn" type="button">Discover Readers</button>
+      <div id="reader-list" class="reader-list"></div>
+    </div>
+
+    <!-- Step 2: Payment -->
+    <div id="step-payment" class="hidden">
+      <div class="status-box">
+        <p><strong>Connected to:</strong> <span id="connected-reader-label"></span></p>
+      </div>
+      
+      <label>Amount (USD)</label>
+      <input type="number" id="amount" value="10.00" step="0.01" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+      
+      <button id="collect-btn" type="button">Collect Payment</button>
+      <button id="disconnect-btn" type="button" style="background-color: #666; margin-top: 10px;">Disconnect</button>
+    </div>
+
+    <div id="payment-message" class="hidden"></div>
+  </form>
+
+  <script>
+    // Initialize Stripe Terminal
+    const terminal = StripeTerminal.create({
+      onFetchConnectionToken: async () => {
+        const response = await fetch('/connection_token', { method: 'POST' });
+        const data = await response.json();
+        return data.secret;
+      },
+      onUnexpectedReaderDisconnect: () => {
+        updateStatus('Reader disconnected unexpectedly', 'error');
+        showConnectStep();
+      }
+    });
+
+    // UI Elements
+    const discoverBtn = document.getElementById('discover-btn');
+    const collectBtn = document.getElementById('collect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const readerList = document.getElementById('reader-list');
+    const statusText = document.getElementById('terminal-status');
+    const messageDiv = document.getElementById('payment-message');
+
+    // Event Listeners
+    discoverBtn.addEventListener('click', discoverReaders);
+    collectBtn.addEventListener('click', collectPayment);
+    disconnectBtn.addEventListener('click', disconnectReader);
+
+    // 1. Discover Readers
+    async function discoverReaders() {
+      updateStatus('Discovering readers...', 'pending');
+      messageDiv.classList.add('hidden');
+      readerList.innerHTML = '';
+
+      try {
+        const isTestMode = {{ is_test_mode | tojson }};
+        const config = { simulated: isTestMode };
+        
+        if (!isTestMode) {
+           console.log("Live Mode: Searching for real Internet readers...");
+           // Ensure discovery method is set for real readers if needed, defaulting to internet for now
+           // config.discoveryMethod = 'internet'; 
+        }
+
+        const discoveryResult = await terminal.discoverReaders(config);
+
+        if (discoveryResult.error) {
+          updateStatus('Discovery failed: ' + discoveryResult.error.message, 'error');
+        } else if (discoveryResult.discoveredReaders.length === 0) {
+          updateStatus('No readers found (ensure simulated reader is enabled)', 'error');
+        } else {
+          updateStatus('Readers found:', 'success');
+          displayReaders(discoveryResult.discoveredReaders);
+        }
+      } catch (e) {
+        updateStatus('Error: ' + e.message, 'error');
+      }
+    }
+
+    // 2. Display & Connect
+    function displayReaders(readers) {
+      readerList.innerHTML = '';
+      readers.forEach(reader => {
+        const div = document.createElement('div');
+        div.className = 'reader-item';
+        div.innerHTML = `<span>${reader.label} (${reader.serial_number})</span> <button type="button">Connect</button>`;
+        div.onclick = () => connectToReader(reader);
+        readerList.appendChild(div);
+      });
+    }
+
+    async function connectToReader(reader) {
+      updateStatus('Connecting to ' + reader.label + '...', 'pending');
+      
+      const connectResult = await terminal.connectReader(reader);
+
+      if (connectResult.error) {
+        updateStatus('Connection failed: ' + connectResult.error.message, 'error');
+      } else {
+        updateStatus('Connected to ' + connectResult.reader.label, 'success');
+        showPaymentStep(connectResult.reader);
+      }
+    }
+
+    // 3. Collect Payment
+    async function collectPayment() {
+      const amount = document.getElementById('amount').value;
+      const amountCents = Math.round(parseFloat(amount) * 100);
+      
+      updateStatus('Creating PaymentIntent...', 'pending');
+
+      // Create PI on backend
+      try {
+        const response = await fetch('/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: amountCents })
+        });
+        const data = await response.json();
+        
+        if (data.error) throw new Error(data.error.message);
+        
+        const clientSecret = data.clientSecret;
+        
+        // Collect Payment on Reader
+        updateStatus('Collecting payment on reader...', 'pending');
+        const result = await terminal.collectPaymentMethod(clientSecret);
+
+        if (result.error) {
+          updateStatus('Collection failed: ' + result.error.message, 'error');
+        } else {
+          updateStatus('Processing payment...', 'pending');
+          const processResult = await terminal.processPayment(result.paymentIntent);
+
+          if (processResult.error) {
+            updateStatus('Payment failed: ' + processResult.error.message, 'error');
+          } else if (processResult.paymentIntent) {
+            updateStatus('Payment Successful!', 'success');
+            showMessage('Payment Succeeded: ' + processResult.paymentIntent.id);
+          }
+        }
+      } catch (e) {
+        updateStatus('Error: ' + e.message, 'error');
+      }
+    }
+
+    // Helpers
+    async function disconnectReader() {
+      await terminal.disconnectReader();
+      showConnectStep();
+      updateStatus('Disconnected', 'pending');
+    }
+
+    function updateStatus(msg, type) {
+      statusText.textContent = msg;
+      const led = document.getElementById('connection-led');
+      if (type === 'success') led.className = 'led connected';
+      else if (type === 'error') led.className = 'led error';
+      else led.className = 'led';
+    }
+
+    function showPaymentStep(reader) {
+      document.getElementById('step-connect').classList.add('hidden');
+      document.getElementById('step-payment').classList.remove('hidden');
+      document.getElementById('connected-reader-label').textContent = reader.label;
+    }
+
+    function showConnectStep() {
+      document.getElementById('step-connect').classList.remove('hidden');
+      document.getElementById('step-payment').classList.add('hidden');
+    }
+
+    function showMessage(msg) {
+      messageDiv.textContent = msg;
+      messageDiv.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

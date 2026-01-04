@@ -13,6 +13,7 @@ set :bind, '0.0.0.0' # Bind to all interfaces for Docker/Render
 set :port, ENV.fetch('PORT', 4567)
 
 get '/' do
+  @is_test_mode = Stripe.api_key.to_s.start_with?('sk_test')
   erb :terminal
 end
 
