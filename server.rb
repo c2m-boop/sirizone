@@ -14,6 +14,18 @@ get '/' do
   erb :checkout
 end
 
+get '/connection-check' do
+  content_type :json
+  begin
+    # Retrieve account details to verify the key works
+    account = Stripe::Account.retrieve
+    { status: 'connected', account_id: account.id }.to_json
+  rescue => e
+    status 500
+    { status: 'error', message: e.message }.to_json
+  end
+end
+
 post '/create-payment-intent' do
   content_type :json
   

@@ -32,6 +32,27 @@
       .querySelector("#payment-form")
       .addEventListener("submit", handleSubmit);
 
+    async function verifyConnection() {
+      const led = document.getElementById('connection-led');
+      const text = document.getElementById('connection-text');
+      
+      try {
+        const response = await fetch('/connection-check');
+        const data = await response.json();
+        
+        if (response.ok && data.status === 'connected') {
+          led.className = 'led connected';
+          text.textContent = 'Stripe Connected';
+        } else {
+          led.className = 'led error';
+          text.textContent = 'Connection Error: ' + (data.message || 'Unknown');
+        }
+      } catch (e) {
+        led.className = 'led error';
+        text.textContent = 'Connection Check Failed';
+      }
+    }
+
     async function initialize() {
       const response = await fetch("/create-payment-intent", {
         method: "POST",
@@ -74,6 +95,7 @@
       setLoading(false);
     }
 
+    // Fetches the payment intent status after payment submission
     async function checkStatus() {
       const clientSecret = new URLSearchParams(window.location.search).get(
         "payment_intent_client_secret"
@@ -101,6 +123,8 @@
       }
     }
 
+    // ------- UI helpers -------
+
     function showMessage(messageText) {
       const messageContainer = document.querySelector("#payment-message");
       messageContainer.classList.remove("hidden");
@@ -109,9 +133,10 @@
       setTimeout(function () {
         messageContainer.classList.add("hidden");
         messageContainer.textContent = "";
-      }, 4000);
+      }, 8000); // Increased timeout to 8 seconds
     }
 
+    // Show a spinner on payment submission
     function setLoading(isLoading) {
       if (isLoading) {
         document.querySelector("#submit").disabled = true;

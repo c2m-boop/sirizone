@@ -19,6 +19,35 @@ form {
   padding: 40px;
 }
 
+.connection-status {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #555;
+}
+
+.led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: 8px;
+  background-color: #ccc; /* Default gray */
+  box-shadow: 0 0 2px #999;
+}
+
+.led.connected {
+  background-color: #28a745; /* Green */
+  box-shadow: 0 0 5px #28a745;
+}
+
+.led.error {
+  background-color: #dc3545; /* Red */
+  box-shadow: 0 0 5px #dc3545;
+}
+
 #payment-message {
   color: rgb(105, 115, 134);
   font-size: 16px;
