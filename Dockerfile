@@ -1,7 +1,4 @@
-FROM ruby:3.2-slim
-
-# Install build dependencies
-RUN apt-get update -qq && apt-get install -y build-essential
+FROM ruby:3.2
 
 WORKDIR /app
 
