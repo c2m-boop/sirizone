@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: stripe-pos
+    env: ruby
+    buildCommand: bundle install
+    startCommand: bundle exec puma -p $PORT -e production
+    envVars:
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: CURRENCY
+        value: usd
