@@ -1,7 +1,9 @@
 services:
   - type: web
     name: stripe-pos
-    env: docker
+    env: ruby
+    buildCommand: bundle install
+    startCommand: bundle exec puma -p $PORT -e production
     envVars:
       - key: STRIPE_SECRET_KEY
         sync: false
