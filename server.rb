@@ -46,35 +46,45 @@ end
 
 post '/create-payment-intent' do
   content_type :json
-  
   begin
     data = JSON.parse(request.body.read)
+    amount = data['amount']
     
-    # Create a PaymentIntent with the order amount and currency
-    payment_intent = Stripe::PaymentIntent.create(
-      amount: 1000, # Amount in cents (e.g. $10.00)
-      currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
-      },
-    )
+    intent = Stripe::PaymentIntent.create({
+      amount: amount,
+      currency: ENV['CURRENCY'] || 'usd',
+      payment_method_types: ['card_present'],
+      capture_method: 'manual',
+    })
     
-    {
-      clientSecret: payment_intent.client_secret,
-    }.to_json
-  rescue Stripe::StripeError => e
-    status 500
-    {
-      error: {
-        message: e.message,
-      }
-    }.to_json
+    { clientSecret: intent.client_secret }.to_json
   rescue => e
     status 500
-    {
-      error: {
-        message: e.message,
-      }
-    }.to_json
+    { error: { message: e.message } }.to_json
+  end
+end
+
+post '/register_reader' do
+  content_type :json
+  begin
+    data = JSON.parse(request.body.read)
+    code = data['code']
+    label = data['label'] || 'New Reader'
+    
+    if code.nil? || code.empty?
+      status 400
+      return { error: { message: 'Registration code is required' } }.to_json
+    end
+
+    reader = Stripe::Terminal::Reader.create({
+      registration_code: code,
+      label: label,
+      location: ENV['LOCATION_ID'] # Optional
+    })
+    
+    { reader: reader }.to_json
+  rescue => e
+    status 500
+    { error: { message: e.message } }.to_json
   end
 end

@@ -52,6 +52,17 @@
       </div>
       <button id="discover-btn" type="button">Discover Readers</button>
       <div id="reader-list" class="reader-list"></div>
+
+      <hr style="margin: 20px 0; border: 0; border-top: 1px solid #ddd;">
+      
+      <!-- Register Reader Section -->
+      <div style="background: #f1f1f1; padding: 15px; border-radius: 4px;">
+          <h3>Register New Reader</h3>
+          <p style="font-size: 0.9em; color: #666;">Enter the code displayed on your device (e.g. WisePOS E) to register it.</p>
+          <input type="text" id="registration-code" placeholder="Registration Code (e.g. unknown-apple-banana)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+          <input type="text" id="reader-label" placeholder="Label (Optional)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+          <button id="register-btn" type="button" style="background-color: #28a745;">Register Reader</button>
+      </div>
     </div>
 
     <!-- Step 2: Payment -->
@@ -88,6 +99,7 @@
     const discoverBtn = document.getElementById('discover-btn');
     const collectBtn = document.getElementById('collect-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
+    const registerBtn = document.getElementById('register-btn');
     const readerList = document.getElementById('reader-list');
     const statusText = document.getElementById('terminal-status');
     const messageDiv = document.getElementById('payment-message');
@@ -96,6 +108,41 @@
     discoverBtn.addEventListener('click', discoverReaders);
     collectBtn.addEventListener('click', collectPayment);
     disconnectBtn.addEventListener('click', disconnectReader);
+    registerBtn.addEventListener('click', registerReader);
+
+    // Register Reader
+    async function registerReader() {
+        const code = document.getElementById('registration-code').value;
+        const label = document.getElementById('reader-label').value;
+        
+        if (!code) {
+            alert('Please enter a registration code');
+            return;
+        }
+        
+        updateStatus('Registering reader...', 'pending');
+        
+        try {
+            const response = await fetch('/register_reader', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, label: label })
+            });
+            const data = await response.json();
+            
+            if (data.error) {
+                updateStatus('Registration failed: ' + data.error.message, 'error');
+            } else {
+                updateStatus('Reader Registered Successfully!', 'success');
+                alert('Reader Registered! You can now Discover Readers.');
+                // Clear inputs
+                document.getElementById('registration-code').value = '';
+                document.getElementById('reader-label').value = '';
+            }
+        } catch (e) {
+            updateStatus('Error: ' + e.message, 'error');
+        }
+    }
 
     // 1. Discover Readers
     async function discoverReaders() {

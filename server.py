@@ -40,6 +40,25 @@ def create_payment_intent():
     except Exception as e:
         return jsonify({'error': {'message': str(e)}}), 500
 
+@app.route('/register_reader', methods=['POST'])
+def register_reader():
+    try:
+        data = request.get_json()
+        code = data.get('code')
+        label = data.get('label', 'New Reader')
+        
+        if not code:
+            return jsonify({'error': {'message': 'Registration code is required'}}), 400
+
+        reader = stripe.terminal.Reader.create(
+            registration_code=code,
+            label=label,
+            location=os.getenv('LOCATION_ID') # Optional: use if you have locations
+        )
+        return jsonify({'reader': reader})
+    except Exception as e:
+        return jsonify({'error': {'message': str(e)}}), 500
+
 if __name__ == '__main__':
     print(f"Server running on http://localhost:4242")
     app.run(port=4242, debug=True)
