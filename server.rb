@@ -13,6 +13,10 @@ set :bind, '0.0.0.0' # Bind to all interfaces for Docker/Render
 set :port, ENV.fetch('PORT', 4567)
 
 get '/' do
+  erb :terminal
+end
+
+get '/online-checkout' do
   erb :checkout
 end
 
@@ -25,6 +29,17 @@ get '/connection-check' do
   rescue => e
     status 500
     { status: 'error', message: e.message }.to_json
+  end
+end
+
+post '/connection_token' do
+  content_type :json
+  begin
+    token = Stripe::Terminal::ConnectionToken.create
+    { secret: token.secret }.to_json
+  rescue => e
+    status 500
+    { error: { message: e.message } }.to_json
   end
 end
 
