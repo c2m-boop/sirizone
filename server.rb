@@ -9,6 +9,8 @@ Stripe.api_key = ENV['STRIPE_SECRET_KEY']
 set :static, true
 set :public_folder, File.join(File.dirname(__FILE__), 'public')
 set :views, File.join(File.dirname(__FILE__), 'views')
+set :bind, '0.0.0.0' # Bind to all interfaces for Docker/Render
+set :port, ENV.fetch('PORT', 4567)
 
 get '/' do
   erb :checkout
