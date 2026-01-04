@@ -5,7 +5,7 @@
   <title>Stripe Terminal POS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://js.stripe.com/terminal/v1/"></script>
-  <link rel="stylesheet" href="/global.css" />
+  <link rel="stylesheet" href="/static/global.css" />
   <style>
     .status-box {
       padding: 15px;
@@ -104,12 +104,11 @@
       readerList.innerHTML = '';
 
       try {
-        const isTestMode = {{ is_test_mode | tojson }};
+        const isTestMode = {{ is_test_mode|tojson }};
         const config = { simulated: isTestMode };
         
         if (!isTestMode) {
            console.log("Live Mode: Searching for real Internet readers...");
-           // Ensure discovery method is set for real readers if needed, defaulting to internet for now
            // config.discoveryMethod = 'internet'; 
         }
 
